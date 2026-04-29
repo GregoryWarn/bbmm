@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
       - Added a "Preview" button to the Module Preset Manager that shows which modules a preset will enable/disable before applying it.
     
     ### Changed
-    - **Settings Preset Preview:** 
+    - **Settings Preset Preview:**
       - Long setting values in the preview dialog are now collapsed by default, with a toggle to expand them.
     - **Localization:**
       - Updated Polish (pl) localization. Thank you [Lioheart](https://gitlocalize.com/users/Lioheart)!
