@@ -320,6 +320,14 @@ function hlp_toJsonSafe(value, seen = new WeakSet(), path = "", depth = 0) {
         return out;
     }
 
+    // Primitive wrapper objects (String/Number/Boolean) — treat as their primitive value.
+    // Use constructor === not instanceof so Foundry subclasses (Color extends Number,
+    // etc.) are NOT intercepted here and instead fall through to the duplicate() path
+    // which calls their toJSON() correctly (e.g. Color.toJSON() → "#rrggbb").
+    if (value.constructor === String) return value.toString();
+    if (value.constructor === Number) return value.valueOf();
+    if (value.constructor === Boolean) return value.valueOf();
+
     // cycle guard
     if (seen.has(value)) {
         out = "[[Circular]]";
@@ -387,6 +395,13 @@ function hlp_toJsonSafe(value, seen = new WeakSet(), path = "", depth = 0) {
         }
     } catch {}
 
+    // Non-plain objects with a meaningful string representation (e.g. Foundry Color)
+    // Mirrors the coerce() logic in hlp_writeSettingsPresetsToStorage
+    try {
+        const s = String(value);
+        if (s && s !== "[object Object]") return s;
+    } catch {}
+
     // Fallback: shallow enumerate safely
     out = {};
     for (const k of Object.keys(value)) {
@@ -415,12 +430,29 @@ function hlp_fromJsonSafe(value) {
                     hlp_fromJsonSafe(v),
                 ])
             );
+        // Recover char-indexed objects left by the old String-wrapper bug
+        const recovered = hlp_uncharsIfNeeded(value);
+        if (recovered !== value) return recovered;
         const out = {};
         for (const [k, v] of Object.entries(value))
             out[k] = hlp_fromJsonSafe(v);
         return out;
     }
     return value;
+}
+
+/* Detect and reverse char-indexed string objects produced by the old bug ===
+   When a String wrapper object (new String("#41aa7d")) was enumerated with
+   Object.keys(), it produced {"0":"#","1":"4","2":"1",...}. This function
+   detects that pattern and reassembles the original string. */
+function hlp_uncharsIfNeeded(v) {
+    if (!v || typeof v !== "object" || Array.isArray(v)) return v;
+    const keys = Object.keys(v);
+    if (!keys.length) return v;
+    for (let i = 0; i < keys.length; i++) {
+        if (keys[i] !== String(i) || typeof v[String(i)] !== "string" || v[String(i)].length !== 1) return v;
+    }
+    return keys.map((k) => v[k]).join("");
 }
 
 /* Detect plain empty object (not Array, not null, no keys) =========== */
@@ -1338,6 +1370,13 @@ function ui_openPresetPreview(rows, presetName = "") {
                 if (t === "string" || t === "number" || t === "boolean")
                     return v;
 
+                // Primitive wrapper objects produce char-indexed keys — unwrap them.
+                // Use constructor === so Foundry subclasses (Color extends Number) fall
+                // through to the plain-object path and get their own serialization.
+                if (v.constructor === String) return v.toString();
+                if (v.constructor === Number) return v.valueOf();
+                if (v.constructor === Boolean) return v.valueOf();
+
                 // Avoid circular explosions
                 if (t === "object") {
                     if (seen.has(v)) return "[Circular]";
@@ -1363,6 +1402,9 @@ function ui_openPresetPreview(rows, presetName = "") {
 
                 // Plain object
                 if (t === "object") {
+                    // Recover char-indexed objects (old String-wrapper serialization bug)
+                    const recovered = hlp_uncharsIfNeeded(v);
+                    if (recovered !== v) return recovered;
                     const obj = {};
                     for (const key of Object.keys(v).sort((a, b) =>
                         a.localeCompare(b)
@@ -1388,6 +1430,11 @@ function ui_openPresetPreview(rows, presetName = "") {
             // Normalize simple cases
             if (v === undefined) return "undefined";
             if (v === null) return "null";
+
+            // Recover char-indexed objects from the old String-wrapper bug so they
+            // compare/display the same as the correctly-serialized primitive string.
+            const uncharred = hlp_uncharsIfNeeded(v);
+            if (uncharred !== v) v = uncharred;
 
             // If it's already a string, try to treat JSON strings as JSON
             if (typeof v === "string") {
@@ -1428,72 +1475,74 @@ function ui_openPresetPreview(rows, presetName = "") {
             })
             .filter((r) => r.__curText !== r.__nextText);
 
+        const COL = "130px 320px 1fr 1fr";
+        const CELL_STYLE = "padding:.25rem .5rem;min-width:0;overflow:hidden;";
+        const LINE_LIMIT = 10;
+        const PRE_STYLE = "margin:0;white-space:pre-wrap;word-break:break-word;";
+        const COLLAPSED_H = `calc(${LINE_LIMIT} * 1.4em)`;
+        const IND_STYLE = "font-size:10px;opacity:.6;margin-top:.15rem;user-select:none;";
+        const fmtVal = (htmlContent, lineCount) => {
+            if (lineCount <= LINE_LIMIT)
+                return `<pre style="${PRE_STYLE}">${htmlContent}</pre>`;
+            const moreText = LT.previewMoreLines({ count: lineCount - LINE_LIMIT });
+            const collapseText = LT.previewCollapse();
+            return `<pre class="bbmm-pp-collapsible" style="${PRE_STYLE}max-height:${COLLAPSED_H};overflow:hidden;">${htmlContent}</pre>`
+                + `<div class="bbmm-pp-more-ind" data-more="${esc(moreText)}" data-collapse="${esc(collapseText)}" style="${IND_STYLE}">▼ ${esc(moreText)}</div>`;
+        };
+        const ROW_STYLE = `display:grid;grid-template-columns:${COL};align-items:start;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px;`;
         const body = normRows
-            .map(
-                (r) => `
-			<tr>
-				<td style="white-space:nowrap;padding:.25rem .5rem;vertical-align:top;">${esc(
-                    r.ns
-                )}</td>
-				<td style="white-space:nowrap;padding:.25rem .5rem;vertical-align:top;">
-					<span
-						data-tooltip="${esc(`${r.ns}.${r.key}`)}"
-						title="${esc(`${r.ns}.${r.key}`)}"
-						style="cursor: help;"
-					>${esc(r.name || r.key)}</span>
-				</td>
-				<td style="padding:.25rem .5rem;vertical-align:top;">
-					<pre style="margin:0;white-space:pre-wrap;word-break:break-word;">${esc(
-                        r.__curText
-                    )}</pre>
-				</td>
-				<td style="padding:.25rem .5rem;vertical-align:top;">
-					<pre style="margin:0;white-space:pre-wrap;word-break:break-word;">${hlp_diffHighlight(
-                        r.__curText,
-                        r.__nextText
-                    )}</pre>
-				</td>
-			</tr>
-		`
-            )
+            .map((r) => {
+                const curLines = r.__curText.split("\n").length;
+                const nextLines = r.__nextText.split("\n").length;
+                const expandable = curLines > LINE_LIMIT || nextLines > LINE_LIMIT;
+                return `
+			<div class="bbmm-pp-row" ${expandable ? `data-expandable="1"` : ""} style="${ROW_STYLE}${expandable ? "cursor:pointer;" : ""}">
+				<div style="${CELL_STYLE}white-space:nowrap;">${esc(r.ns)}</div>
+				<div style="${CELL_STYLE}word-break:break-word;">
+					<span data-tooltip="${esc(`${r.ns}.${r.key}`)}" title="${esc(`${r.ns}.${r.key}`)}" style="cursor:help;">${esc(game.i18n.localize(r.name) || r.key)}</span>
+				</div>
+				<div style="${CELL_STYLE}">${fmtVal(esc(r.__curText), curLines)}</div>
+				<div style="${CELL_STYLE}">${fmtVal(hlp_diffHighlight(r.__curText, r.__nextText), nextLines)}</div>
+			</div>
+		`;
+            })
             .join("");
 
         const content = `
-			<div style="max-width:1200px;margin:0 auto;">
-				<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.5rem;">
-					<h3 style="margin:.25rem 0;">${esc(
-                        LT.titlePresetPreview?.() ?? "Preset changes preview"
-                    )}</h3>
-					<div style="opacity:.8;">${esc(presetName)} — ${normRows.length} change${
-            normRows.length === 1 ? "" : "s"
-        }</div>
-				</div>
-
-				<div style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:6px;">
-					<table style="width:100%;border-collapse:collapse;font-size:12px;">
-						<thead style="position:sticky;top:0;background:var(--app-background);z-index:1;">
-							<tr>
-								<th style="text-align:left;padding:.5rem;min-width:140px;">Namespace</th>
-								<th style="text-align:left;padding:.5rem;min-width:220px;">Setting</th>
-								<th style="text-align:left;padding:.5rem;min-width:280px;">Current</th>
-								<th style="text-align:left;padding:.5rem;min-width:280px;">New</th>
-							</tr>
-						</thead>
-						<tbody>${body}</tbody>
-					</table>
-				</div>
-
-				${
-                    normRows.length === 0
-                        ? `<p style="opacity:.75;margin:.5rem 0 0 0;">${esc(
-                              LT.noChangesDetected?.() ?? "No changes detected."
-                          )}</p>`
-                        : ""
-                }
+			<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.5rem;">
+				<h3 style="margin:.25rem 0;">${esc(LT.titlePresetPreview?.() ?? "Preset changes preview")}</h3>
+				<div style="opacity:.8;">${esc(presetName)} — ${normRows.length} change${normRows.length === 1 ? "" : "s"}</div>
 			</div>
+			${normRows.length === 0
+                ? `<p style="opacity:.75;margin:0;">${esc(LT.noChangesDetected?.() ?? "No changes detected.")}</p>`
+                : `<div style="border:1px solid var(--color-border,#444);border-radius:6px;overflow:hidden;">
+					<div style="display:grid;grid-template-columns:${COL};border-bottom:1px solid var(--color-border,#444);padding:.35rem .5rem;font-weight:600;font-size:12px;">
+						<div>Namespace</div><div>Setting</div><div>Current</div><div>New</div>
+					</div>
+					<div style="overflow-y:auto;overflow-x:hidden;max-height:60vh;">${body}</div>
+				</div>`
+            }
 		`;
 
+        const hookId = Hooks.on("renderDialogV2", (app) => {
+            if (app.id !== "bbmm-preset-preview") return;
+            Hooks.off("renderDialogV2", hookId);
+            app.element.addEventListener("click", (e) => {
+                if (e.target.closest("button, a, input, select, textarea")) return;
+                const row = e.target.closest("[data-expandable='1']");
+                if (!row) return;
+                const pres = row.querySelectorAll(".bbmm-pp-collapsible");
+                const inds = row.querySelectorAll(".bbmm-pp-more-ind");
+                const collapsed = pres[0]?.style.maxHeight !== "";
+                pres.forEach((p) => { p.style.maxHeight = collapsed ? "" : COLLAPSED_H; });
+                inds.forEach((ind) => {
+                    ind.textContent = collapsed ? `▲ ${ind.dataset.collapse}` : `▼ ${ind.dataset.more}`;
+                });
+            });
+        });
+
         new foundry.applications.api.DialogV2({
+            id: "bbmm-preset-preview",
             window: {
                 title: LT.titlePresetPreview?.() ?? "Preset changes preview",
             },
