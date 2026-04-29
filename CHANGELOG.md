@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.8.7] - 2026-04-29
+## [0.8.7-test1] - 2026-04-29
   ## Fixed
   - **Persistent Data:**
     - Fixed critical bug that deleted persistent data on load. Backed out changes that prevented 404 errors. On very first load after activating the mofudule, you will still see a 404 error once, but once loaded it should not appear again. 
