@@ -4,94 +4,103 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.7-test2] - 2026-04-29
+
+### Fixed
+- **Import/Export:**
+  - replaced depriciated FilePicker functions. 
+
 ## [0.8.7-test1] - 2026-04-29
-  ### Fixed
-  - **Persistent Data:**
-    - Fixed critical bug that deleted persistent data on load. Backed out changes that prevented 404 errors. On very first load after activating the mofudule, you will still see a 404 error once, but once loaded it should not appear again. 
+
+### Fixed
+- **Persistent Data:**
+  - Fixed critical bug that deleted persistent data on load caused by changes that attempted to prevent 404 errors. 
+  - On very first load after activating the mofudule, you will still see a 404 error once for each file, but once loaded it should not appear again. 
 
 ## [0.8.6] - 2026-04-29 [YANKED]
-  ### Added
-  - **Module Presets:** 
-    - Added a "Preview" button to the Module Preset Manager that shows which modules a preset will enable/disable before applying it.
-    
-  ### Changed
-  - **Settings Preset Preview:**
-    - Long setting values in the preview dialog are now collapsed by default, with a toggle to expand them.
-  - **Localization:**
-    - Updated Polish (pl) localization. Thank you [Lioheart](https://gitlocalize.com/users/Lioheart)!
 
-  ### Fixed
-  - **Persistent Data:**
-    - Fixed 404 errors on load if the persistent data .json files do not exist yet. 
+### Added
+- **Module Presets:** 
+  - Added a "Preview" button to the Module Preset Manager that shows which modules a preset will enable/disable before applying it.
+  
+### Changed
+- **Settings Preset Preview:**
+  - Long setting values in the preview dialog are now collapsed by default, with a toggle to expand them.
+- **Localization:**
+  - Updated Polish (pl) localization. Thank you [Lioheart](https://gitlocalize.com/users/Lioheart)!
+
+### Fixed
+- **Persistent Data:**
+  - Fixed 404 errors on load if the persistent data .json files do not exist yet. 
 
 ## [0.8.5] - 2026-04-12
 
-  ### Fixed
-  - **General:**
-    - Fixed 404 error on load when storage documents for persistent storage do not exist. Now checks for files and if they do not exist, blank files are created.
+### Fixed
+- **General:**
+  - Fixed 404 error on load when storage documents for persistent storage do not exist. Now checks for files and if they do not exist, blank files are created.
 
-  ### Changed
-  - **V14 Support:**
-    - Testing has found no issues in v14 so I am officially releasing for v14. 
-  - **Localization:**
-    - Updated French (fr) localization. Thank you [Rectulo](https://gitlocalize.com/users/rectulo)!
-    - Updated Brazilian Portuguese (pt-BR) localization. Thank you [Kharmans](https://github.com/Kharmans)!
-    - Updated Italian (it) localization. Thank you [GregoryWarn](https://github.com/GregoryWarn)!
+### Changed
+- **V14 Support:**
+  - Testing has found no issues in v14 so I am officially releasing for v14. 
+- **Localization:**
+  - Updated French (fr) localization. Thank you [Rectulo](https://gitlocalize.com/users/rectulo)!
+  - Updated Brazilian Portuguese (pt-BR) localization. Thank you [Kharmans](https://github.com/Kharmans)!
+  - Updated Italian (it) localization. Thank you [GregoryWarn](https://github.com/GregoryWarn)!
 
 ## [0.8.4] - 2026-04-11
 
-  ### Changed
-  - **Module Management:**
-    - Added module count when grouping by tags/subtags
-  - **Documentation:**
-    - Updated BBMM Journal to include newer features. 
+### Changed
+- **Module Management:**
+  - Added module count when grouping by tags/subtags
+- **Documentation:**
+  - Updated BBMM Journal to include newer features. 
 
 ## [0.8.3] - 2026-04-10
 
-  ### Fixed
-  - **Module Management:**
-    - Fixed bug when unselecting a module in the Tag Manager bulk tag window it would become unresponsive. 
+### Fixed
+- **Module Management:**
+  - Fixed bug when unselecting a module in the Tag Manager bulk tag window it would become unresponsive. 
 
-  ### Changed
-  - **Settings Sync:**
-    - Improved tooltip for lock and sync buttons to specify all gestures based on settings configuration. 
-  - **Localization:**
-    - Updated Brazilian Portuguese (pt-BR) localization. Thank you [Kharmans](https://github.com/Kharmans)!
+### Changed
+- **Settings Sync:**
+  - Improved tooltip for lock and sync buttons to specify all gestures based on settings configuration. 
+- **Localization:**
+  - Updated Brazilian Portuguese (pt-BR) localization. Thank you [Kharmans](https://github.com/Kharmans)!
 
 ## [0.8.2] - 2026-04-09
 
-  ### Added
-  - **Module Management:**
-    - Tag/subtag group headers now display with a distinct border and larger text for better readability.
-    - Click a group header to collapse or expand that group (chevron icon indicates state).
-    - Added **Collapse All** / **Expand All** toolbar buttons (visible when grouping is active) to collapse or expand all groups at once.
+### Added
+- **Module Management:**
+  - Tag/subtag group headers now display with a distinct border and larger text for better readability.
+  - Click a group header to collapse or expand that group (chevron icon indicates state).
+  - Added **Collapse All** / **Expand All** toolbar buttons (visible when grouping is active) to collapse or expand all groups at once.
 
 ## [0.8.1] - 2026-04-07
 
-  ### Fixed
-  - **Module Management:**
-    - Module search now includes author names in addition to module name and ID.
-    - When using Tag Manager to bulk tag modules: selecting modules, then changing the filter no longer clears previously selected modules.
+### Fixed
+- **Module Management:**
+  - Module search now includes author names in addition to module name and ID.
+  - When using Tag Manager to bulk tag modules: selecting modules, then changing the filter no longer clears previously selected modules.
 
 ## [0.8.0] - 2026-04-07
 
-  ### Added
-  - **Module Management**: 
-    - New tag/subtag system for organizing modules
-      - Create and manage tags and subtags via the Tag Manager (Settings menu or GM toolbar dropdown)
-      - Assign tags to individual modules from the module notes edit window
-      - Bulk-assign a tag/subtag combination to multiple modules at once using the "+" button in Tag Manager
-      - Filter the module list by tag in Module Management
-      - Group modules by tag or by subtag in Module Management
-      - Tag and subtag assignments persist across worlds via file storage (`bbmm-data/module-tags.json`)
-      - Tags and subtags are sorted alphabetically
-  - **Settings**: 
-  - Added section headers (Changelogs, Module Management, Sync, Advanced) to settings page for nicer UX
-  - Added "Manage Tags" and "Changelog Filenames" entries to the GM toolbar dropdown
-  
-  ### Changed
-  - Updated Polish (pl) localization. Thank you [Lioheart](https://gitlocalize.com/users/Lioheart)!
-  - Updated Brazilian Portuguese (pt-BR) localization. Thank you [Kharmans](https://github.com/Kharmans)!
+### Added
+- **Module Management**: 
+  - New tag/subtag system for organizing modules
+    - Create and manage tags and subtags via the Tag Manager (Settings menu or GM toolbar dropdown)
+    - Assign tags to individual modules from the module notes edit window
+    - Bulk-assign a tag/subtag combination to multiple modules at once using the "+" button in Tag Manager
+    - Filter the module list by tag in Module Management
+    - Group modules by tag or by subtag in Module Management
+    - Tag and subtag assignments persist across worlds via file storage (`bbmm-data/module-tags.json`)
+    - Tags and subtags are sorted alphabetically
+- **Settings**: 
+- Added section headers (Changelogs, Module Management, Sync, Advanced) to settings page for nicer UX
+- Added "Manage Tags" and "Changelog Filenames" entries to the GM toolbar dropdown
+
+### Changed
+- Updated Polish (pl) localization. Thank you [Lioheart](https://gitlocalize.com/users/Lioheart)!
+- Updated Brazilian Portuguese (pt-BR) localization. Thank you [Kharmans](https://github.com/Kharmans)!
 
 ## [0.7.6] - 2026-03-30
 
