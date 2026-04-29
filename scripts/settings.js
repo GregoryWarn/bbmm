@@ -1985,7 +1985,10 @@ Hooks.once("ready", async () => {
 				DL(2, "settings.js | createDirectory failed for bbmm-data", err);
 		}
 
-		// Seed any missing data files with empty defaults
+		// Seed any missing data files with empty defaults.
+		// Uses fetch() to check each file individually — avoids relying on
+		// FilePicker.browse() which can return an empty list on some setups
+		// even when the files already exist, causing every file to be overwritten.
 		const seeds = {
 			"module-notes.json":     {},
 			"module-presets.json":   {},
@@ -1995,14 +1998,21 @@ Hooks.once("ready", async () => {
 			"user-inclusions.json":  { settings: [], modules: [] },
 		};
 
-		let existing = new Set();
-		try {
-			const browse = await FilePicker.browse("data", "bbmm-data", { extensions: ["json"] });
-			existing = new Set((browse?.files ?? []).map(f => f.split("/").pop()));
-		} catch (_) { /* folder may not exist yet — all files will be seeded */ }
-
 		for (const [filename, defaultData] of Object.entries(seeds)) {
-			if (existing.has(filename)) continue;
+			// Check if the file already exists before seeding
+			let fileExists = false;
+			try {
+				const check = await fetch(`bbmm-data/${filename}`, { cache: "no-store" });
+				fileExists = check.ok;
+			} catch (_) {
+				// Network error or file not found — treat as missing
+			}
+
+			if (fileExists) {
+				DL(`settings.js | ${filename} already exists, skipping seed`);
+				continue;
+			}
+
 			try {
 				const file = new File([JSON.stringify(defaultData, null, 2)], filename, { type: "application/json" });
 				await FilePicker.upload("data", "bbmm-data", file, { notify: false });

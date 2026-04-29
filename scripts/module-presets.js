@@ -64,6 +64,10 @@ async function hlp_setPresets(presets) {
 
 // Save Preset checking if it exists and prompting to overwrite or rename
 async function hlp_savePreset(name, modules) {
+	// Guard: if cache is empty, re-read from disk before writing to avoid wiping existing presets
+	if (!_presetCache || Object.keys(_presetCache).length === 0) {
+		await hlp_loadPresets();
+	}
 	
 	// Prompt how to handle duplicate name 
 	function askPresetConflict(existingKey) {
@@ -188,19 +192,10 @@ async function hlp_fetchJSON(url) {
 // Ensure storage root has expected shape
 async function hlp_readPresetsFromStorage() {
 	try {
-		const dir = `bbmm-data`;
-		const browse = await FilePicker.browse("data", dir, { extensions: ["json"] });
-
-		const match = (browse?.files || []).find(f => String(f).endsWith(`/${MODULE_PRESETS_STORAGE_FILE}`));
-		if (match) {
-			const data = await hlp_fetchJSON(match);
-			return hlp_sanitizePresetMap(data);
-		}
-		return {};
+		const data = await hlp_fetchJSON(`bbmm-data/${MODULE_PRESETS_STORAGE_FILE}`);
+		return hlp_sanitizePresetMap(data);
 	} catch (err) {
-		const msg = String(err?.message ?? err);
-		if (!msg.includes("does not exist") && !msg.includes("not accessible"))
-			DL(2, "module-presets.js | hlp_readPresetsFromStorage(): browse failed unexpectedly", err);
+		DL(2, "module-presets.js | hlp_readPresetsFromStorage(): fetch failed", err);
 	}
 	return {};
 }
