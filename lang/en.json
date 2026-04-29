@@ -169,6 +169,11 @@
 		"selectNamespace": "Select namespace...",
 		"hiddenOnly": "Only Hidden items",
 		"noChangesDetected": "No changes detected. Preset is identical to current state.",
+		"previewMoreLines": "{count} more lines — click to expand",
+		"previewCollapse": "Click to collapse",
+		"titleModulePresetPreview": "Module Preset Preview",
+		"moduleMissing": "(missing)",
+		"modulesMissing": "{count} missing",
 		"buttons": {
 			"yes": "Yes",
 			"no": "No",

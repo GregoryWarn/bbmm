@@ -411,7 +411,70 @@ async function applyEnabledIds(enabledIds, {autoEnableDeps = true} = {}) {
 	await game.settings.set("core", "moduleConfiguration", config);
 }
 
-//	Open Dialog to manage presets 
+// Open a preview dialog showing which modules a preset will enable
+function ui_openModulePresetPreview(preset) {
+	try {
+		DL(`module-presets.js | ui_openModulePresetPreview(): preset="${preset?.name}", modules=${preset?.modules?.length ?? 0}`);
+
+		const esc = hlp_esc;
+		const modules = Array.isArray(preset?.modules) ? preset.modules : [];
+
+		const rows = modules
+			.map((id) => {
+				const mod = game.modules.get(id);
+				return { id, title: mod?.title || id, installed: !!mod };
+			})
+			.sort((a, b) => {
+				if (a.installed !== b.installed) return a.installed ? 1 : -1;
+				return a.title.localeCompare(b.title);
+			});
+
+		const missingCount = rows.filter((r) => !r.installed).length;
+		const missingText = LT.moduleMissing();
+
+		const CELL_STYLE = "padding:.25rem .5rem;min-width:0;overflow:hidden;word-break:break-word;";
+		const ROW_STYLE = "display:grid;grid-template-columns:1fr auto;align-items:center;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px;";
+
+		const body = rows.map((r) => {
+			const nameColor = r.installed ? "" : "color:#f55;";
+			const badge = r.installed
+				? ""
+				: `<span style="color:#f55;font-size:11px;white-space:nowrap;padding-left:.5rem;">${esc(missingText)}</span>`;
+			return `<div style="${ROW_STYLE}">
+				<div style="${CELL_STYLE}${nameColor}" title="${esc(r.id)}">${esc(r.title)}</div>
+				<div style="${CELL_STYLE}text-align:right;">${badge}</div>
+			</div>`;
+		}).join("");
+
+		const missingNote = missingCount > 0 ? ` (${LT.modulesMissing({ count: missingCount })})` : "";
+		const subtitle = `${esc(preset.displayName)} — ${rows.length} module${rows.length === 1 ? "" : "s"}${missingNote}`;
+
+		const content = `
+			<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.5rem;">
+				<h3 style="margin:.25rem 0;">${esc(LT.titleModulePresetPreview())}</h3>
+				<div style="opacity:.8;">${subtitle}</div>
+			</div>
+			<div style="border:1px solid var(--color-border,#444);border-radius:6px;overflow:hidden;">
+				<div style="border-bottom:1px solid var(--color-border,#444);padding:.35rem .5rem;font-weight:600;font-size:12px;">${esc(LT.module())}</div>
+				<div style="overflow-y:auto;overflow-x:hidden;max-height:38vh;">${body || `<div style="padding:.5rem;opacity:.7;">${esc(LT.errors.noModulesDet())}.</div>`}</div>
+			</div>
+		`;
+
+		new foundry.applications.api.DialogV2({
+			id: "bbmm-module-preset-preview",
+			window: { title: LT.titleModulePresetPreview() },
+			position: { width: Math.min(600, window.innerWidth - 100), height: Math.round(window.innerHeight * 0.5) },
+			content,
+			buttons: [{ action: "close", label: LT.buttons.close(), default: true }],
+			submit: () => "close",
+		}).render(true);
+	} catch (err) {
+		DL(3, "module-presets.js | ui_openModulePresetPreview(): error", err);
+		ui.notifications.error(`${LT.errors.errorOccured()}.`);
+	}
+}
+
+//	Open Dialog to manage presets
 export async function openPresetManager() {
 	DL("module-presets.js | openPresetManager: start");
 
@@ -473,6 +536,7 @@ export async function openPresetManager() {
 					<label style="min-width:10rem;">${LT.savedPresets()}</label>
 					<select name="presetName" style="flex:1;">${options}</select>
 					<button type="button" data-action="load">${LT.buttons.load()}</button>
+					<button type="button" data-action="preview">${LT.buttons.preview()}</button>
 					<button type="button" data-action="update">${LT.buttons.update()}</button>
 					<button type="button" data-action="rename">${LT.errors.rename()}</button>
 					<button type="button" data-action="delete">${LT.buttons.delete()}</button>
@@ -520,7 +584,7 @@ export async function openPresetManager() {
 				if (!(btn instanceof HTMLButtonElement)) return;
 
 				const action = btn.dataset.action || "";
-				if (!["load", "update", "rename", "delete", "save-current"].includes(action)) return;
+				if (!["load", "update", "rename", "delete", "save-current", "preview"].includes(action)) return;
 
 				// Prevent normal button form submission
 				ev.preventDefault();
@@ -531,6 +595,13 @@ export async function openPresetManager() {
 					const sel = form.elements.namedItem("presetName");
 					const selectedId = sel ? String(sel.value || "") : "";
 					const picked = selectedId ? index[selectedId] : null;
+
+					// Preview preset
+					if (action === "preview") {
+						if (!picked) return ui.notifications.warn(LT.selectPreset());
+						ui_openModulePresetPreview(picked);
+						return;
+					}
 
 					// Save current enabled modules as new preset
 					if (action === "save-current") {
