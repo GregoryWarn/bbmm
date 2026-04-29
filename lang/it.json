@@ -169,6 +169,11 @@
 		"selectNamespace": "Seleziona namespace...",
 		"hiddenOnly": "Solo elementi nascosti",
 		"noChangesDetected": "Nessuna modifica rilevata. Il preset è identico allo stato attuale.",
+		"previewMoreLines": "{count} altre righe — clicca per espandere",
+		"previewCollapse": "Click per ridurre",
+		"titleModulePresetPreview": "Anteprima Predefinita Modulo",
+		"moduleMissing": "(mancante)",
+		"modulesMissing": "{count} mancanti",
 		"buttons": {
 			"yes": "Sì",
 			"no": "No",
