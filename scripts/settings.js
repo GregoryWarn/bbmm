@@ -1,7 +1,7 @@
 import { openPresetManager } from './module-presets.js';
 import { openSettingsPresetManager, svc_loadSettingsPresets } from './settings-presets.js';
 import { LT, BBMM_ID } from "./localization.js";
-import { openInclusionsManagerApp } from "./inclusions.js";
+import { openInclusionsManagerApp, hlp_readUserInclusions } from "./inclusions.js";
 import { hlp_readUserExclusions } from "./exclusions.js";
 import { 
 	hlp_openManualByUuid, 
@@ -1133,8 +1133,23 @@ async function bbmm_importIncExcBundle() {
 		return;
 	}
 
-	const inInc = raw?.inclusions ?? {};
-	const inExc = raw?.exclusions ?? {};
+	// Detect format: bundle (has inclusions/exclusions keys) vs legacy flat file
+	let inInc, inExc;
+	const isFlat = !raw?.inclusions && !raw?.exclusions && (Array.isArray(raw?.settings) || Array.isArray(raw?.modules));
+	if (isFlat) {
+		// Legacy flat file — determine direction from filename
+		const name = file.name.toLowerCase();
+		if (name.includes("exclusion")) {
+			inInc = {};
+			inExc = raw;
+		} else {
+			inInc = raw;
+			inExc = {};
+		}
+	} else {
+		inInc = raw?.inclusions ?? {};
+		inExc = raw?.exclusions ?? {};
+	}
 
 	const inIncModules = Array.isArray(inInc?.modules) ? inInc.modules.map(String) : [];
 	const inExcModules = Array.isArray(inExc?.modules) ? inExc.modules.map(String) : [];
@@ -1234,6 +1249,10 @@ async function bbmm_importIncExcBundle() {
 		const f = new File([payload], "user-exclusions.json", { type: "application/json" });
 		await FilePicker.upload("data", "bbmm-data", f, { notify: false });
 	}
+
+	// Refresh in-memory caches so the manager shows the new data without a reload
+	await hlp_readUserInclusions({ force: true });
+	await hlp_readUserExclusions({ force: true });
 
 	DL(1, `${FN} imported + merged`, {
 		addedInclusionsModules: inIncModules.length,
@@ -1986,9 +2005,7 @@ Hooks.once("ready", async () => {
 		}
 
 		// Seed any missing data files with empty defaults.
-		// Uses fetch() to check each file individually — avoids relying on
-		// FilePicker.browse() which can return an empty list on some setups
-		// even when the files already exist, causing every file to be overwritten.
+		// Uses fetch() to check each file individually rather than directory listing.
 		const seeds = {
 			"module-notes.json":     {},
 			"module-presets.json":   {},

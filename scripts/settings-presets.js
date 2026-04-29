@@ -36,19 +36,14 @@ async function hlp_fetchJSON(url) {
     }
 }
 
-// Verify that presets storage directory exists
+// Verify that presets storage directory exists by probing the known settings file
 async function hlp_verifyPresetsDir() {
-    const dir = `bbmm-data`;
-
     try {
-        await FilePicker.browse("data", dir, {});
-        return true;
+        const res = await fetch(`bbmm-data/${SETTINGS_PRESETS_STORAGE_FILE}`, { cache: "no-store" });
+        // 200 or 404 both mean the directory is reachable; only network errors mean it isn't
+        return res.ok || res.status === 404;
     } catch (err) {
-        DL(
-            3,
-            "settings-presets.js | hlp_verifyPresetsDir(): missing or inaccessible",
-            { dir, err }
-        );
+        DL(3, "settings-presets.js | hlp_verifyPresetsDir(): missing or inaccessible", { err });
         return false;
     }
 }
