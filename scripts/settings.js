@@ -1,7 +1,7 @@
 import { openPresetManager } from './module-presets.js';
 import { openSettingsPresetManager, svc_loadSettingsPresets } from './settings-presets.js';
 import { LT, BBMM_ID } from "./localization.js";
-import { openInclusionsManagerApp } from "./inclusions.js";
+import { openInclusionsManagerApp, hlp_readUserInclusions } from "./inclusions.js";
 import { hlp_readUserExclusions } from "./exclusions.js";
 import { 
 	hlp_openManualByUuid, 
@@ -1133,8 +1133,23 @@ async function bbmm_importIncExcBundle() {
 		return;
 	}
 
-	const inInc = raw?.inclusions ?? {};
-	const inExc = raw?.exclusions ?? {};
+	// Detect format: bundle (has inclusions/exclusions keys) vs legacy flat file
+	let inInc, inExc;
+	const isFlat = !raw?.inclusions && !raw?.exclusions && (Array.isArray(raw?.settings) || Array.isArray(raw?.modules));
+	if (isFlat) {
+		// Legacy flat file — determine direction from filename
+		const name = file.name.toLowerCase();
+		if (name.includes("exclusion")) {
+			inInc = {};
+			inExc = raw;
+		} else {
+			inInc = raw;
+			inExc = {};
+		}
+	} else {
+		inInc = raw?.inclusions ?? {};
+		inExc = raw?.exclusions ?? {};
+	}
 
 	const inIncModules = Array.isArray(inInc?.modules) ? inInc.modules.map(String) : [];
 	const inExcModules = Array.isArray(inExc?.modules) ? inExc.modules.map(String) : [];
@@ -1234,6 +1249,10 @@ async function bbmm_importIncExcBundle() {
 		const f = new File([payload], "user-exclusions.json", { type: "application/json" });
 		await FilePicker.upload("data", "bbmm-data", f, { notify: false });
 	}
+
+	// Refresh in-memory caches so the manager shows the new data without a reload
+	await hlp_readUserInclusions({ force: true });
+	await hlp_readUserExclusions({ force: true });
 
 	DL(1, `${FN} imported + merged`, {
 		addedInclusionsModules: inIncModules.length,
@@ -1985,7 +2004,8 @@ Hooks.once("ready", async () => {
 				DL(2, "settings.js | createDirectory failed for bbmm-data", err);
 		}
 
-		// Seed any missing data files with empty defaults
+		// Seed any missing data files with empty defaults.
+		// Uses fetch() to check each file individually rather than directory listing.
 		const seeds = {
 			"module-notes.json":     {},
 			"module-presets.json":   {},
@@ -1995,14 +2015,21 @@ Hooks.once("ready", async () => {
 			"user-inclusions.json":  { settings: [], modules: [] },
 		};
 
-		let existing = new Set();
-		try {
-			const browse = await FilePicker.browse("data", "bbmm-data", { extensions: ["json"] });
-			existing = new Set((browse?.files ?? []).map(f => f.split("/").pop()));
-		} catch (_) { /* folder may not exist yet — all files will be seeded */ }
-
 		for (const [filename, defaultData] of Object.entries(seeds)) {
-			if (existing.has(filename)) continue;
+			// Check if the file already exists before seeding
+			let fileExists = false;
+			try {
+				const check = await fetch(`bbmm-data/${filename}`, { cache: "no-store" });
+				fileExists = check.ok;
+			} catch (_) {
+				// Network error or file not found — treat as missing
+			}
+
+			if (fileExists) {
+				DL(`settings.js | ${filename} already exists, skipping seed`);
+				continue;
+			}
+
 			try {
 				const file = new File([JSON.stringify(defaultData, null, 2)], filename, { type: "application/json" });
 				await FilePicker.upload("data", "bbmm-data", file, { notify: false });

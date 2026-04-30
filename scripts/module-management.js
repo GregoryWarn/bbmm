@@ -23,17 +23,11 @@ let _notesCache = null;   // { [moduleId]: htmlString }
 
 async function _bbmmFetchJSON(filename) {
 	try {
-		const browse = await FilePicker.browse("data", "bbmm-data", { extensions: ["json"] });
-		const match = (browse?.files ?? []).find(f => String(f).endsWith(`/${filename}`));
-		if (match) {
-			const res = await fetch(match, { cache: "no-store" });
-			if (res.ok) return await res.json();
-		}
+		const res = await fetch(`bbmm-data/${filename}`, { cache: "no-store" });
+		if (res.ok) return await res.json();
 		return null;
 	} catch (e) {
-		const msg = String(e?.message ?? e);
-		if (!msg.includes("does not exist") && !msg.includes("not accessible"))
-			DL(2, `module-management.js | _bbmmFetchJSON(${filename}): browse failed`, e);
+		DL(2, `module-management.js | _bbmmFetchJSON(${filename}): fetch failed`, e);
 	}
 	return null;
 }

@@ -36,19 +36,14 @@ async function hlp_fetchJSON(url) {
     }
 }
 
-// Verify that presets storage directory exists
+// Verify that presets storage directory exists by probing the known settings file
 async function hlp_verifyPresetsDir() {
-    const dir = `bbmm-data`;
-
     try {
-        await FilePicker.browse("data", dir, {});
-        return true;
+        const res = await fetch(`bbmm-data/${SETTINGS_PRESETS_STORAGE_FILE}`, { cache: "no-store" });
+        // 200 or 404 both mean the directory is reachable; only network errors mean it isn't
+        return res.ok || res.status === 404;
     } catch (err) {
-        DL(
-            3,
-            "settings-presets.js | hlp_verifyPresetsDir(): missing or inaccessible",
-            { dir, err }
-        );
+        DL(3, "settings-presets.js | hlp_verifyPresetsDir(): missing or inaccessible", { err });
         return false;
     }
 }
@@ -70,29 +65,11 @@ function hlp_sanitizeUserInclusions(raw) {
 
 // Read presets from persistent storage file ===========================
 export async function hlp_readSettingsPresetsFromStorage() {
-    const dir = `bbmm-data`;
-
     try {
-        const browse = await FilePicker.browse("data", dir, {
-            extensions: ["json"],
-        });
-        const match = (browse?.files || []).find((f) =>
-            String(f).endsWith(`/${SETTINGS_PRESETS_STORAGE_FILE}`)
-        );
-        if (match) {
-            const data = await hlp_fetchJSON(match);
-            return hlp_sanitizeSettingsPresets(data);
-        }
-        return null;
+        const data = await hlp_fetchJSON(`bbmm-data/${SETTINGS_PRESETS_STORAGE_FILE}`);
+        return hlp_sanitizeSettingsPresets(data);
     } catch (err) {
-        const msg = String(err?.message ?? err ?? "");
-        if (!msg.includes("does not exist") && !msg.includes("not accessible")) {
-            DL(
-                2,
-                "settings-presets.js | hlp_readSettingsPresetsFromStorage(): browse failed",
-                err
-            );
-        }
+        DL(2, "settings-presets.js | hlp_readSettingsPresetsFromStorage(): fetch failed", err);
     }
 
     return null;
@@ -949,6 +926,11 @@ async function svc_savePresetToSettings(presetName, selectedEntries) {
 async function svc_saveSettingsPreset(name, payload) {
     const rawInput = String(name).trim();
     let finalName = rawInput;
+
+    // Guard: if cache is empty, re-read from disk before writing to avoid wiping existing presets
+    if (!_settingsPresetCache || Object.keys(_settingsPresetCache).length === 0) {
+        await svc_loadSettingsPresets();
+    }
 
     const all = svc_getSettingsPresets();
     const existingKey = hlp_findExistingSettingsPresetKey(rawInput);
